@@ -10,7 +10,7 @@ const DocumentSchema = new mongoose.Schema({
     required: true,
   },
   doc_size: {
-    type: BigInt,
+    type: String,
     required: true,
   },
   created_at: {

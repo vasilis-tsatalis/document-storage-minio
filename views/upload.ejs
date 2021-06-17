@@ -1,0 +1,34 @@
+<%- include("./partials/header") %>
+
+<%- include("./navbar/menu") %>
+
+    <div class="container mt-4">
+        
+        <div class="jumbotron">
+            <p class="lead">Upload document for converting in Document Engine</p>
+            <hr class="my-4">
+            <p><b><i>The document type should be (.docx or .DOCX)</i></b></p> 
+            <hr class="my-4"> <br>
+        </div>
+
+        <div class="jumbotron">
+            <form action="/upload" enctype="multipart/form-data" method="POST">
+                <label for="email" class="form-label">Email Address</label>
+                <input type="email" class="form-control" id="email" name="email" placeholder="person@email.com" required/>
+                
+                <div class="mb-3 mt-4">
+                    <label for="formFile" class="form-label">Upload Document</label>
+                    <input class="form-control" type="file" id="formFile" name="doc_conv" required/> <br>
+                    <input type="submit" value="submit">
+                  </div>                
+                <hr class="my-4">
+          </form>
+        </div>
+        <br>
+        <% if (typeof message !== 'undefined' ) { %>
+            <p><%= message %></p>
+            <% } %>
+
+    </div>
+
+    <%- include("./partials/footer") %>
