@@ -1,0 +1,50 @@
+<%- include("./partials/header") %>
+
+<nav>
+    <h4>Document Converting System</h4>
+    <ul>
+        <li><a href="/login">Login</a></li>
+        <li><a href="/register">Register</a></li>
+    </ul>
+</nav>
+
+<div class="container mt-4">
+    <div class="card">
+        <div class="card-header">
+            <b>Login Form</b>
+        </div>
+        <div class="card-body">
+            <form action="/login" method="POST">
+                <div class="form-group mt-4">
+                    <label for="exampleInputEmail1" class="form-label">Email address</label>
+                    <input type="email" name="email" class="form-control" id="exampleInputEmail1" aria-describedby="emailHelp">
+                </div>
+                <div class="form-group mt-4">
+                    <label for="exampleInputPassword1">Password</label>
+            <input type="password" name="password" class="form-control" id="exampleInputPassword1" minlength="8">
+                </div>
+                <button type="submit" class="btn btn-primary mt-4">Login User</button>
+            </form>
+        </div>
+    </div>
+
+    <ul>
+        <% if (typeof errors != 'undefined') { %> <% errors.forEach(error => { %>
+        <li><%= error.message %></li>
+        <% }) %> <% } %>
+      </ul>
+  
+      <ul>
+        <% if(messages.success_msg) { %>
+        <li><%= messages.success_msg %></li>
+        <% } %>
+      </ul>
+  
+      <ul>
+        <% if (messages.error) { %>
+        <li><%= messages.error %></li>
+        <% } %>
+      </ul>
+
+</div>
+<%- include("./partials/footer") %>
