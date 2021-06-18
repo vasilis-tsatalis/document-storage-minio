@@ -1,6 +1,10 @@
 const mongoose = require("mongoose");
 
 const DocumentSchema = new mongoose.Schema({
+  email: {
+    type: String,
+    required: true,
+  },
   name: {
     type: String,
     required: true,
@@ -11,7 +15,7 @@ const DocumentSchema = new mongoose.Schema({
   },
   doc_size: {
     type: String,
-    required: true,
+    required: false,
   },
   created_at: {
     type: Date,

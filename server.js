@@ -23,7 +23,7 @@ mongoose
     useNewUrlParser: true,
     useUnifiedTopology: true,
     useCreateIndex: true,
-    useFindAndModify: false,
+    useFindAndModify: true,
   })
   .then(() => {
     console.log("Connected to mongodb cloud atlas!");
@@ -71,7 +71,28 @@ app
     res.render("register");
   })
   .get("/home", authenticateUser, (req, res) => {
-    res.render("home", { user: req.session.user });
+    res.render("home", { user: req.session.user.email });
+  })
+  .get("/documents", authenticateUser,async (req, res) => {
+
+    const documents = [];
+    const username = req.session.user.email
+    
+    await Document.findOne({ username })
+    .then(data => {
+     let results = data.rows;
+     results.forEach(element => {
+        documents.push({ name: element.name, url: element.url, doc_size: element.doc_size, created_at: element.created_at });
+      });
+      //console.log(documents);
+      return res.render("documents", { documents });
+    })    
+    .catch(err => {
+      //console.error(err);
+      return res.render("documents", { message: err });
+    });
+
+    //res.render("documents");
   })
   .get("/upload", authenticateUser, (req, res) => {
     res.render("upload");
@@ -79,38 +100,38 @@ app
 
 // route for handling post requirests
 app
-  .post("/login", async (req, res) => {
-    const { email, password } = req.body;
+.post("/login", async (req, res) => {
+  const { email, password } = req.body;
 
-    // check for missing filds
-    if (!email || !password) {
-      res.send("Please enter all the fields");
-      return;
-    }
+  // check for missing filds
+  if (!email || !password) {
+    res.send("Please enter all the fields");
+    return;
+  }
 
-    const doesUserExits = await User.findOne({ email });
+  const doesUserExits = await User.findOne({ email });
 
-    if (!doesUserExits) {
-      res.send("invalid username or password");
-      return;
-    }
+  if (!doesUserExits) {
+    res.send("invalid username or password");
+    return;
+  }
 
-    const doesPasswordMatch = await bcrypt.compare(
-      password,
-      doesUserExits.password
-    );
+  const doesPasswordMatch = await bcrypt.compare(
+    password,
+    doesUserExits.password
+  );
 
-    if (!doesPasswordMatch) {
-      res.send("invalid useranme or password");
-      return;
-    }
+  if (!doesPasswordMatch) {
+    res.send("invalid useranme or password");
+    return;
+  }
 
-    // else he\s logged in
-    req.session.user = {
-      email,
-    };
+  // else he\s logged in
+  req.session.user = {
+    email,
+  };
 
-    res.redirect("/home");
+  res.redirect("/home");
   })
   .post("/register", async (req, res) => {
     const { email, password, password2 } = req.body;
@@ -142,6 +163,7 @@ app
       .catch((err) => {
         return res.render("register", { message: err });
       });
+  
   });
 
 //upload files
@@ -170,8 +192,8 @@ app.post("/upload", authenticateUser, async (req, res) => {
   
         //console.log(req.file.originalname);
         //console.log(req.file.filename);
-        //console.log(req.body.email)
-        const email = req.body.email
+        console.log(req.session.user.email)
+        const email = req.session.user.email
         const position = email.lastIndexOf("@");
         const username = email.substring(0, position)
         //console.log(req.body.doc_conv)
@@ -205,8 +227,20 @@ app.post("/upload", authenticateUser, async (req, res) => {
 
                         minioClient.presignedUrl('GET', username, pdf_name, 7*24*60*60, function(err, presignedUrl) {
                             if (err) return console.log(err)
-                            console.log(presignedUrl)
-                            res.render("upload", { message: "Success, document uploaded!"});
+                            //console.log(presignedUrl)
+                            
+                            const today = new Date();
+                            const new_date = new Date();
+                            new_date.setDate(today.getDate() + 7);
+                            const convertDocument = new Document({ email, name: pdf_name, url: presignedUrl, doc_size: '0', created_at: today, expired_at: new_date });
+                            convertDocument
+                            .save()
+                            .then(() => {
+                              res.render("upload", { message: "Success, document uploaded!"});
+                            })
+                            .catch((err) => {
+                              return res.render("upload", { message: err });
+                            });
 
                         // send email
                         transporter.sendMail({

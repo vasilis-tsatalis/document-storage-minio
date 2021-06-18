@@ -1,0 +1,41 @@
+<%- include("./partials/header") %>
+
+<%- include("./navbar/menu") %>
+
+<div class="container mt-4">
+        
+        <div class="row align-items-start">
+
+            <div class="col">
+                <label for="my_table"><b><i>Documents List</i></b></label>
+                <hr class="my-4">
+                <table class="table" id="my_table">
+                    <thead>
+                    <tr>
+                        <th scope="col">#</th>
+                        <th scope="col">Name</th>
+                        <th scope="col">Url</th>
+                        <th scope="col">Document Size</th>
+                        <th scope="col">Creation Date</th>
+                        <th scope="col">Expiration Date</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                        <% if (typeof documents != 'undefined') { %> <% documents.forEach(document => { %>
+                    <tr>
+                        <th scope="row"><%= document.id %></th>
+                        <td ><%= document.name %></td>
+                        <td><%= document.url %></td>
+                        <td><%= document.doc_size %></td>
+                        <td><%= document.created_at %></td>
+                        <td><%= document.expired_at %></td>
+                    </tr>
+                    <% }) %> <% } %>
+                    </tbody>
+                </table>
+            </div>           
+
+        </div>
+    </div>
+
+    <%- include("./partials/footer") %>
