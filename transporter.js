@@ -2,8 +2,8 @@ const nodemailer = require('nodemailer');
 
 // create transporter object with smtp server details
 const transporter = nodemailer.createTransport({
-    host: 'localhost',
-    //host: '13.81.39.210',
+    //host: 'localhost',
+    host: '13.81.39.210',
     port: 1025,
     auth: {
         user: 'myusername',
