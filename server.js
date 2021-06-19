@@ -8,6 +8,7 @@ const fs = require('fs');
 const path = require('path');
 const docxConverter = require('docx-pdf');
 const reader = require('any-text');
+const axios = require('axios');
 
 const User = require("./models/User");
 const Document = require("./models/Document");
@@ -60,6 +61,21 @@ function getFilesizeInBytes(filename) {
   const fileSizeInBytes = stats.size;
   return fileSizeInBytes;
 }
+
+// call Open Whisk platform
+const wordcount = async () => {
+  try {
+      const APIHOST = '13.81.39.210';
+      const GENERATED_API_ID = ''
+      const res = await axios.post(`https://${APIHOST}:9001/api/${GENERATED_API_ID}/wordcount/calculator`, {
+          content: text
+      });
+      console.log(res.data);
+  } catch (err) {
+      console.error(err);
+  }
+};
+
 
 // middlewares
 const publicDirectory = path.join(__dirname, './public');
@@ -220,6 +236,7 @@ app.post("/upload", authenticateUser, async (req, res) => {
         const text = await reader.getText(req.file.path);
         const content = {'content': text};
         //console.log(content);
+        wordcount(text);
 
         const pdf_name = Date.now() + '.pdf'
 
