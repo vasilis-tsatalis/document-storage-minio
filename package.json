@@ -17,6 +17,7 @@
   },
   "homepage": "https://github.com/vasilis-tsatalis/document-storage-minio#readme",
   "dependencies": {
+    "any-text": "^1.2.0",
     "bcrypt": "^5.0.1",
     "cookie-session": "^1.4.0",
     "docx-pdf": "0.0.1",

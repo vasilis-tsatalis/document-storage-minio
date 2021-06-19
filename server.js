@@ -7,6 +7,7 @@ const multer = require("multer");
 const fs = require('fs');
 const path = require('path');
 const docxConverter = require('docx-pdf');
+const reader = require('any-text');
 
 const User = require("./models/User");
 const Document = require("./models/Document");
@@ -43,6 +44,22 @@ const storage = multer.diskStorage({destination: function(req, file, cb) {
     }
 });
 
+// send email
+function send_email(email, presignedUrl){
+  transporter.sendMail({
+    from: 'onlineconvert@email.com',
+    to: email,
+    subject: 'Cloud File Link',
+    html: `<a href="${presignedUrl}">Download File</a>`
+});
+}
+
+// calc document size
+function getFilesizeInBytes(filename) {
+  const stats = fs.statSync(filename);
+  const fileSizeInBytes = stats.size;
+  return fileSizeInBytes;
+}
 
 // middlewares
 const publicDirectory = path.join(__dirname, './public');
@@ -165,7 +182,9 @@ app
 
 //upload files
 app.post("/upload", authenticateUser, async (req, res) => {
-    let upload = multer({ storage: storage, fileFilter: helpers.docFilter }).single('doc_conv');
+
+  let upload = multer({ storage: storage, fileFilter: helpers.docFilter }).single('doc_conv');
+
     upload(req, res, async function(err) {
         // req.file contains information of uploaded file
         // req.body contains information of text fields, if there were any
@@ -196,6 +215,11 @@ app.post("/upload", authenticateUser, async (req, res) => {
         //console.log(req.body.doc_conv)
         //console.log(req.file.size) //bytes
         //console.log(req.file)
+        
+        // extract text from docx uploaded file
+        const text = await reader.getText(req.file.path);
+        const content = {'content': text};
+        //console.log(content);
 
         const pdf_name = Date.now() + '.pdf'
 
@@ -203,8 +227,7 @@ app.post("/upload", authenticateUser, async (req, res) => {
             if(err){
                 fs.unlinkSync(req.file.path);
                 return res.render("upload", { message: err });
-            } 
-            else {
+            } else {
                 fs.unlinkSync(req.file.path);
                 minioClient.bucketExists(username, function(err, exists) {
                     if (err) return console.log(err);
@@ -220,16 +243,18 @@ app.post("/upload", authenticateUser, async (req, res) => {
                     });
                     minioClient.putObject(username, pdf_name, the_file, function(error, etag) {
                         if(error) return console.log(error);
-                        fs.unlinkSync(req.file.destination + '/' + pdf_name);
+
+                        const fullname = req.file.destination + '/' + pdf_name;
+                        const doc_size = getFilesizeInBytes(fullname);
+                        fs.unlinkSync(fullname);
 
                         minioClient.presignedUrl('GET', username, pdf_name, 7*24*60*60, function(err, presignedUrl) {
                             if (err) return console.log(err)
                             //console.log(presignedUrl)
-                            
                             const today = new Date();
                             const new_date = new Date();
                             new_date.setDate(today.getDate() + 7);
-                            const convertDocument = new Document({ email, name: pdf_name, url: presignedUrl, doc_size: '0', created_at: today, expired_at: new_date });
+                            const convertDocument = new Document({ email, name: pdf_name, url: presignedUrl, doc_size: doc_size, content: content, created_at: today, expired_at: new_date });
                             convertDocument
                             .save()
                             .then(() => {
@@ -238,37 +263,13 @@ app.post("/upload", authenticateUser, async (req, res) => {
                             .catch((err) => {
                               return res.render("upload", { message: err });
                             });
-
-                        // send email
-                        transporter.sendMail({
-                            from: 'onlineconvert@email.com',
-                            to: req.body.email,
-                            subject: 'Cloud File Link',
-                            html: `<a href="${presignedUrl}">Download File</a>`
-                        });
-
+                          send_email(email, presignedUrl);
                         })
                     });
                 });
             }
         });
-        //const buffer = fs.readFileSync(req.file.path);
-        //console.log(req.file.path);
-        //const fileContent = buffer.toString();
-        //console.log(fileContent);
-
- /*       fs.readFile(req.file.path, 'utf-8' , (err, data) => {
-            if (err) {
-                console.error(err)
-              return
-            }
-            fs.unlinkSync(req.file.path);
-            console.log(data)
-          }) */
-
-
     });
-
 });
 
 //logout

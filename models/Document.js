@@ -17,6 +17,10 @@ const DocumentSchema = new mongoose.Schema({
     type: String,
     required: false,
   },
+  content: {
+    type: JSON,
+    required: true,
+  },
   created_at: {
     type: Date,
     required: true,
