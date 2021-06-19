@@ -46,12 +46,12 @@ const storage = multer.diskStorage({destination: function(req, file, cb) {
 });
 
 // send email
-function send_email(email, presignedUrl){
+function send_email(email, body){
   transporter.sendMail({
     from: 'onlineconvert@email.com',
     to: email,
     subject: 'Cloud File Link',
-    html: `<a href="${presignedUrl}">Download File</a>`
+    html: body
 });
 }
 
@@ -63,19 +63,20 @@ function getFilesizeInBytes(filename) {
 }
 
 // call Open Whisk platform
-const wordcount = async () => {
+async function wordcount(text){
   try {
-      const APIHOST = '13.81.39.210';
-      const GENERATED_API_ID = ''
-      const res = await axios.post(`https://${APIHOST}:9001/api/${GENERATED_API_ID}/wordcount/calculator`, {
-          content: text
-      });
-      console.log(res.data);
-  } catch (err) {
-      console.error(err);
-  }
-};
-
+    const APIHOST = '13.81.39.210:3233';
+    const res = await axios.post(`http://${APIHOST}/api/v1/web/guest/default/wordcount`, {
+        content: text
+    });
+    console.log(res.data);
+    //const data = JSON.stringify(res.data);
+    //console.log(data);
+    return res.data;
+} catch (err) {
+    console.error(err);
+}
+}
 
 // middlewares
 const publicDirectory = path.join(__dirname, './public');
@@ -188,6 +189,8 @@ app
     latestUser
       .save()
       .then(() => {
+        const body = `User with email address <b>${email}</b> has been registered at <i>Document Convert and Storage Platform</i>.`;  
+        send_email(email, body);
         res.render("login", { message: "User created successfully!"});
       })
       .catch((err) => {
@@ -234,9 +237,9 @@ app.post("/upload", authenticateUser, async (req, res) => {
         
         // extract text from docx uploaded file
         const text = await reader.getText(req.file.path);
-        const content = {'content': text};
+        const content = wordcount(text);
         //console.log(content);
-        wordcount(text);
+        
 
         const pdf_name = Date.now() + '.pdf'
 
@@ -280,7 +283,8 @@ app.post("/upload", authenticateUser, async (req, res) => {
                             .catch((err) => {
                               return res.render("upload", { message: err });
                             });
-                          send_email(email, presignedUrl);
+                          const body = `<a href="${presignedUrl}">Download File</a>`;  
+                          send_email(email, body);
                         })
                     });
                 });
