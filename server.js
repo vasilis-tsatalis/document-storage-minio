@@ -76,12 +76,11 @@ app
   .get("/documents", authenticateUser,async (req, res) => {
 
     const documents = [];
-    const username = req.session.user.email
-    
-    await Document.findOne({ username })
+    const email = req.session.user.email;
+   
+    await Document.find().where({ email: email })
     .then(data => {
-     let results = data.rows;
-     results.forEach(element => {
+      data.forEach(element => {
         documents.push({ name: element.name, url: element.url, doc_size: element.doc_size, created_at: element.created_at });
       });
       //console.log(documents);
@@ -90,9 +89,7 @@ app
     .catch(err => {
       //console.error(err);
       return res.render("documents", { message: err });
-    });
-
-    //res.render("documents");
+    }); 
   })
   .get("/upload", authenticateUser, (req, res) => {
     res.render("upload");

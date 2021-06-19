@@ -12,7 +12,6 @@
                 <table class="table" id="my_table">
                     <thead>
                     <tr>
-                        <th scope="col">#</th>
                         <th scope="col">Name</th>
                         <th scope="col">Url</th>
                         <th scope="col">Document Size</th>
@@ -23,9 +22,8 @@
                     <tbody>
                         <% if (typeof documents != 'undefined') { %> <% documents.forEach(document => { %>
                     <tr>
-                        <th scope="row"><%= document.id %></th>
-                        <td ><%= document.name %></td>
-                        <td><%= document.url %></td>
+                        <th scope="row"><%= document.name %></th>
+                        <td><a href=<%= document.url %>>Download</a></td>
                         <td><%= document.doc_size %></td>
                         <td><%= document.created_at %></td>
                         <td><%= document.expired_at %></td>
