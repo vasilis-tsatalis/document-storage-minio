@@ -17,9 +17,13 @@ const DocumentSchema = new mongoose.Schema({
     type: String,
     required: false,
   },
+  conv_time: {
+    type: Number,
+    required: false,
+  },
   content: {
     type: JSON,
-    required: true,
+    required: false,
   },
   created_at: {
     type: Date,

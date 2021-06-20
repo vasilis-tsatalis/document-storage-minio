@@ -1,3 +1,4 @@
+const microtime = require('microtime');
 const express = require("express");
 const mongoose = require("mongoose");
 const cookieSession = require("cookie-session");
@@ -63,14 +64,21 @@ function getFilesizeInBytes(filename) {
 }
 
 // call Open Whisk platform
-async function wordcount(text){
+async function wordcount(pdf_name, text){
   try {
     const APIHOST = '13.81.39.210:3233';
     const res = await axios.post(`http://${APIHOST}/api/v1/web/guest/default/wordcount`, {
         content: text
     });
-    console.log(res.data);
+    //console.log(res.data);
     //const data = JSON.stringify(res.data);
+    //const results = res.data;
+
+    var obj = res.data;
+    var keys = Object.keys(obj);
+    for (var i = 0; i < keys.length; i++) {
+      console.log(obj[keys[i]]);
+    }
     //console.log(data);
     return res.data;
 } catch (err) {
@@ -115,7 +123,7 @@ app
     await Document.find().where({ email: email })
     .then(data => {
       data.forEach(element => {
-        documents.push({ name: element.name, url: element.url, doc_size: element.doc_size, created_at: element.created_at });
+        documents.push({ name: element.name, url: element.url, doc_size: element.doc_size, conv_time: element.conv_time, created_at: element.created_at, expired_at: element.expired_at });
       });
       //console.log(documents);
       return res.render("documents", { documents });
@@ -124,6 +132,9 @@ app
       //console.error(err);
       return res.render("documents", { message: err });
     }); 
+  })
+  .get("/messaging", authenticateUser, (req, res) => {
+    res.render("messaging");
   })
   .get("/upload", authenticateUser, (req, res) => {
     res.render("upload");
@@ -235,19 +246,23 @@ app.post("/upload", authenticateUser, async (req, res) => {
         //console.log(req.file.size) //bytes
         //console.log(req.file)
         
+        const pdf_name = Date.now() + '.pdf'
+        
         // extract text from docx uploaded file
         const text = await reader.getText(req.file.path);
-        const content = wordcount(text);
-        //console.log(content);
+        wordcount(pdf_name, text);
         
-
-        const pdf_name = Date.now() + '.pdf'
+        const str_time = microtime.now();
 
         docxConverter(req.file.path, req.file.destination + '/' + pdf_name,function(err,result){
             if(err){
                 fs.unlinkSync(req.file.path);
                 return res.render("upload", { message: err });
             } else {
+
+                const end_time = microtime.now();
+                const conv_time = end_time - str_time;
+
                 fs.unlinkSync(req.file.path);
                 minioClient.bucketExists(username, function(err, exists) {
                     if (err) return console.log(err);
@@ -274,7 +289,7 @@ app.post("/upload", authenticateUser, async (req, res) => {
                             const today = new Date();
                             const new_date = new Date();
                             new_date.setDate(today.getDate() + 7);
-                            const convertDocument = new Document({ email, name: pdf_name, url: presignedUrl, doc_size: doc_size, content: content, created_at: today, expired_at: new_date });
+                            const convertDocument = new Document({ email, name: pdf_name, url: presignedUrl, doc_size: doc_size, conv_time: conv_time, content: text, created_at: today, expired_at: new_date });
                             convertDocument
                             .save()
                             .then(() => {

@@ -7,17 +7,13 @@
         <div class="row align-items-start">
 
             <div class="col">
-                <label for="my_table"><b><i>Documents List</i></b></label>
+                <label for="my_table"><b><i>PreSigned url from Messaging System</i></b></label>
                 <hr class="my-4">
                 <table class="table" id="my_table">
                     <thead>
                     <tr>
                         <th scope="col">Name</th>
                         <th scope="col">Url</th>
-                        <th scope="col">Document Size (bytes)</th>
-                        <th scope="col">Convert Time (ms)</th>
-                        <th scope="col">Creation Date</th>
-                        <th scope="col">Expiriration Date</th>
                     </tr>
                     </thead>
                     <tbody>
@@ -25,10 +21,6 @@
                     <tr>
                         <th scope="row"><%= document.name %></th>
                         <td><a href=<%= document.url %>>Download</a></td>
-                        <td><%= document.doc_size %></td>
-                        <td><%= document.conv_time %></td>
-                        <td><%= document.created_at %></td>
-                        <td><%= document.expired_at %></td>
                     </tr>
                     <% }) %> <% } %>
                     </tbody>
