@@ -5,13 +5,17 @@ const DocumentSchema = new mongoose.Schema({
     type: String,
     required: true,
   },
+  original_name: {
+    type: String,
+    required: true,
+  },
   name: {
     type: String,
     required: true,
   },
   url: {
     type: String,
-    required: true,
+    required: false,
   },
   doc_size: {
     type: String,

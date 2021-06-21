@@ -14,6 +14,8 @@
                     <tr>
                         <th scope="col">Name</th>
                         <th scope="col">Url</th>
+                        <th scope="col">Creation Date</th>
+                        <th scope="col">Expiriration Date</th>
                     </tr>
                     </thead>
                     <tbody>
@@ -21,6 +23,8 @@
                     <tr>
                         <th scope="row"><%= document.name %></th>
                         <td><a href=<%= document.url %>>Download</a></td>
+                        <td><%= document.created_at %></td>
+                        <td><%= document.expired_at %></td>
                     </tr>
                     <% }) %> <% } %>
                     </tbody>

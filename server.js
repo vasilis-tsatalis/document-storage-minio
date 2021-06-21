@@ -11,6 +11,7 @@ const docxConverter = require('docx-pdf');
 const reader = require('any-text');
 const axios = require('axios');
 
+require('dotenv/config');
 const User = require("./models/User");
 const Document = require("./models/Document");
 const authenticateUser = require("./middlewares/authenticateUser");
@@ -20,13 +21,13 @@ const helpers = require('./helpers');
 
 const app = express();
 
-// mongdb cloud connection is here
+// mongdb cloud connection is here 
 mongoose
-  .connect("mongodb+srv://moviesuser:7173a8PZk7m68Oyy@devdatabase01.iqvmj.mongodb.net/devdb?retryWrites=true&w=majority", {
+  .connect(process.env.MONGO_DB, {
     useNewUrlParser: true,
     useUnifiedTopology: true,
     useCreateIndex: true,
-    useFindAndModify: true,
+    useFindAndModify: false,
   })
   .then(() => {
     console.log("Connected to mongodb cloud atlas!");
@@ -56,6 +57,43 @@ function send_email(email, body){
 });
 }
 
+// create output queue in rabbitmq messaging system
+async function create_output_queue(username){
+  try {
+    const res = await axios.put(`http://${process.env.RABBITMQ}/api/queues/dcs/${username}`, {
+      auth: {
+        username: process.env.USERNAME,
+        password: process.env.PASSWORD
+      },
+      auto_delete: false,
+      durable: true,
+      arguments: {},
+      node: `rabbit@${process.env.VM_NAME}`
+    });
+    console.log(res.data);
+    return res.data;
+  } catch (err) {
+    console.error(err);
+    }
+}
+
+// create output queue in rabbitmq messaging system
+async function create_routing_key(username, user_id){
+  try {
+    const res = await axios.post(`http://${process.env.RABBITMQ}/api/bindings/dcs/e/dcs-exch-url/q/${username}`, {
+      auth: {
+        username: process.env.USERNAME,
+        password: process.env.PASSWORD
+      },
+      routing_key: user_id
+    });
+    console.log(res.data);
+    return res.data;
+  } catch (err) {
+    console.error(err);
+    }
+}
+
 // calc document size
 function getFilesizeInBytes(filename) {
   const stats = fs.statSync(filename);
@@ -66,19 +104,18 @@ function getFilesizeInBytes(filename) {
 // call Open Whisk platform
 async function wordcount(pdf_name, text){
   try {
-    const APIHOST = '13.81.39.210:3233';
-    const res = await axios.post(`http://${APIHOST}/api/v1/web/guest/default/wordcount`, {
+    const res = await axios.post(`http://${process.env.OPENWHISK}/api/v1/web/guest/default/wordcount`, {
         content: text
     });
     //console.log(res.data);
     //const data = JSON.stringify(res.data);
     //const results = res.data;
-
-    var obj = res.data;
+    console.log(res.data);
+/*    var obj = res.data;
     var keys = Object.keys(obj);
     for (var i = 0; i < keys.length; i++) {
       console.log(obj[keys[i]]);
-    }
+    } */
     //console.log(data);
     return res.data;
 } catch (err) {
@@ -97,7 +134,7 @@ app.use(flash());
 // cookie session
 app.use(
   cookieSession({
-    keys: ["3d804d40850d74aa14a62044dca7cc0b2c00d16a409ac36fc19ab664daf6e685"],
+    keys: [process.env.COOKIE_KEY],
   })
 );
 
@@ -113,7 +150,11 @@ app
     res.render("register");
   })
   .get("/home", authenticateUser, (req, res) => {
-    res.render("home", { user: req.session.user.email });
+
+    const email = req.session.user.email;
+    const position = email.lastIndexOf("@");
+    const username = email.substring(0, position)
+    res.render("home", { username });
   })
   .get("/documents", authenticateUser,async (req, res) => {
 
@@ -123,7 +164,7 @@ app
     await Document.find().where({ email: email })
     .then(data => {
       data.forEach(element => {
-        documents.push({ name: element.name, url: element.url, doc_size: element.doc_size, conv_time: element.conv_time, created_at: element.created_at, expired_at: element.expired_at });
+        documents.push({ original_name: element.original_name, name: element.name, doc_size: element.doc_size, conv_time: element.conv_time });
       });
       //console.log(documents);
       return res.render("documents", { documents });
@@ -133,8 +174,23 @@ app
       return res.render("documents", { message: err });
     }); 
   })
-  .get("/messaging", authenticateUser, (req, res) => {
-    res.render("messaging");
+  .get("/messaging", authenticateUser, async (req, res) => {
+    
+    const documents = [];
+    const email = req.session.user.email;
+   
+    await Document.find().where({ email: email })
+    .then(data => {
+      data.forEach(element => {
+        documents.push({ name: element.name, url: element.url, created_at: element.created_at, expired_at: element.expired_at });
+      });
+      //console.log(documents);
+      return res.render("messaging", { documents });
+    })    
+    .catch(err => {
+      //console.error(err);
+      return res.render("messaging", { message: err });
+    }); 
   })
   .get("/upload", authenticateUser, (req, res) => {
     res.render("upload");
@@ -144,20 +200,19 @@ app
 app
 .post("/login", async (req, res) => {
   const { email, password } = req.body;
+  email.toLowerCase();
 
   // check for missing filds
   if (!email || !password) {
     res.send("Please enter all the fields");
     return;
   }
-
   const doesUserExits = await User.findOne({ email });
 
   if (!doesUserExits) {
     res.send("invalid username or password");
     return;
   }
-
   const doesPasswordMatch = await bcrypt.compare(
     password,
     doesUserExits.password
@@ -172,11 +227,11 @@ app
   req.session.user = {
     email,
   };
-
   res.redirect("/home");
   })
   .post("/register", async (req, res) => {
     const { email, password, password2 } = req.body;
+    email.toLowerCase();
 
     // check for missing filds
     if (!email || !password || !password2) {
@@ -193,9 +248,12 @@ app
         return res.render("register", { message: "A user with that email already exits please try another one!" });
     }
 
+    const position = email.lastIndexOf("@");
+    const username = email.substring(0, position)
+
     // lets hash the password
     const hashedPassword = await bcrypt.hash(password, 12);
-    const latestUser = new User({ email, password: hashedPassword });
+    const latestUser = new User({ email, username, password: hashedPassword });
 
     latestUser
       .save()
@@ -207,7 +265,6 @@ app
       .catch((err) => {
         return res.render("register", { message: err });
       });
-  
   });
 
 //upload files
@@ -237,37 +294,34 @@ app.post("/upload", authenticateUser, async (req, res) => {
         }
   
         //console.log(req.file.originalname);
-        //console.log(req.file.filename);
-        console.log(req.session.user.email)
-        const email = req.session.user.email
-        const position = email.lastIndexOf("@");
-        const username = email.substring(0, position)
+        
         //console.log(req.body.doc_conv)
         //console.log(req.file.size) //bytes
         //console.log(req.file)
         
         const pdf_name = Date.now() + '.pdf'
-        
+
+        const email = req.session.user.email
+        const user = await User.findOne({ email });
+        //console.log(user)
         // extract text from docx uploaded file
         const text = await reader.getText(req.file.path);
         wordcount(pdf_name, text);
         
         const str_time = microtime.now();
-
         docxConverter(req.file.path, req.file.destination + '/' + pdf_name,function(err,result){
             if(err){
                 fs.unlinkSync(req.file.path);
                 return res.render("upload", { message: err });
             } else {
-
                 const end_time = microtime.now();
                 const conv_time = end_time - str_time;
 
                 fs.unlinkSync(req.file.path);
-                minioClient.bucketExists(username, function(err, exists) {
+                minioClient.bucketExists(user.username, function(err, exists) {
                     if (err) return console.log(err);
                     if (!exists) {
-                        minioClient.makeBucket(username, 'us-east-1', function(err) {
+                        minioClient.makeBucket(user.username, 'us-east-1', function(err) {
                             if (err) return console.log('Error creating bucket.', err) 
                         })
                     }
@@ -276,20 +330,20 @@ app.post("/upload", authenticateUser, async (req, res) => {
                     const chunk = data.toString();
                     return chunk;
                     });
-                    minioClient.putObject(username, pdf_name, the_file, function(error, etag) {
+                    minioClient.putObject(user.username, pdf_name, the_file, function(error, etag) {
                         if(error) return console.log(error);
 
                         const fullname = req.file.destination + '/' + pdf_name;
                         const doc_size = getFilesizeInBytes(fullname);
                         fs.unlinkSync(fullname);
 
-                        minioClient.presignedUrl('GET', username, pdf_name, 7*24*60*60, function(err, presignedUrl) {
+                        minioClient.presignedUrl('GET', user.username, pdf_name, 7*24*60*60, function(err, presignedUrl) {
                             if (err) return console.log(err)
                             //console.log(presignedUrl)
                             const today = new Date();
                             const new_date = new Date();
                             new_date.setDate(today.getDate() + 7);
-                            const convertDocument = new Document({ email, name: pdf_name, url: presignedUrl, doc_size: doc_size, conv_time: conv_time, content: text, created_at: today, expired_at: new_date });
+                            const convertDocument = new Document({ email, original_name: req.file.originalname, name: pdf_name, url: presignedUrl, doc_size: doc_size, conv_time: conv_time, content: text, created_at: today, expired_at: new_date });
                             convertDocument
                             .save()
                             .then(() => {
@@ -298,8 +352,10 @@ app.post("/upload", authenticateUser, async (req, res) => {
                             .catch((err) => {
                               return res.render("upload", { message: err });
                             });
-                          const body = `<a href="${presignedUrl}">Download File</a>`;  
-                          send_email(email, body);
+                            create_output_queue(user.username);
+                            create_routing_key(user.username, user._id);
+                          //const body = `<a href="${presignedUrl}">Download File</a>`;  
+                          //send_email(email, body);
                         })
                     });
                 });
@@ -315,7 +371,7 @@ app.get("/logout", authenticateUser, (req, res) => {
 });
 
 // server config
-const PORT = 4000;
+const PORT = process.env.PORT;
 app.listen(PORT, () => {
   console.log(`Server started listening on port: ${PORT}`);
 });
