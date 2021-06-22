@@ -18,6 +18,10 @@ const authenticateUser = require("./middlewares/authenticateUser");
 const minioClient = require('./minioClient');
 const transporter = require('./transporter');
 const helpers = require('./helpers');
+const queue = require('./queue');
+const routing = require('./routing');
+const publish = require('./publish');
+const messages = require('./messages');
 
 const app = express();
 
@@ -55,43 +59,6 @@ function send_email(email, body){
     subject: 'Cloud File Link',
     html: body
 });
-}
-
-// create output queue in rabbitmq messaging system
-async function create_output_queue(username){
-  try {
-    const res = await axios.put(`http://${process.env.RABBITMQ}/api/queues/dcs/${username}`, {
-      auth: {
-        username: process.env.USERNAME,
-        password: process.env.PASSWORD
-      },
-      auto_delete: false,
-      durable: true,
-      arguments: {},
-      node: `rabbit@${process.env.VM_NAME}`
-    });
-    console.log(res.data);
-    return res.data;
-  } catch (err) {
-    console.error(err);
-    }
-}
-
-// create output queue in rabbitmq messaging system
-async function create_routing_key(username, user_id){
-  try {
-    const res = await axios.post(`http://${process.env.RABBITMQ}/api/bindings/dcs/e/dcs-exch-url/q/${username}`, {
-      auth: {
-        username: process.env.USERNAME,
-        password: process.env.PASSWORD
-      },
-      routing_key: user_id
-    });
-    console.log(res.data);
-    return res.data;
-  } catch (err) {
-    console.error(err);
-    }
 }
 
 // calc document size
@@ -178,6 +145,8 @@ app
     
     const documents = [];
     const email = req.session.user.email;
+    const user = await User.findOne({ email });
+    messages.get_message(user.username);
    
     await Document.find().where({ email: email })
     .then(data => {
@@ -251,6 +220,8 @@ app
     const position = email.lastIndexOf("@");
     const username = email.substring(0, position)
 
+    queue.create_output(username);
+
     // lets hash the password
     const hashedPassword = await bcrypt.hash(password, 12);
     const latestUser = new User({ email, username, password: hashedPassword });
@@ -260,6 +231,7 @@ app
       .then(() => {
         const body = `User with email address <b>${email}</b> has been registered at <i>Document Convert and Storage Platform</i>.`;  
         send_email(email, body);
+        routing.create_routing(latestUser._id, username);
         res.render("login", { message: "User created successfully!"});
       })
       .catch((err) => {
@@ -352,8 +324,7 @@ app.post("/upload", authenticateUser, async (req, res) => {
                             .catch((err) => {
                               return res.render("upload", { message: err });
                             });
-                            create_output_queue(user.username);
-                            create_routing_key(user.username, user._id);
+                            publish.publish_message(user._id, pdf_name, presignedUrl)
                           //const body = `<a href="${presignedUrl}">Download File</a>`;  
                           //send_email(email, body);
                         })
