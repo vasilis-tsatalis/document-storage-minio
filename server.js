@@ -147,7 +147,9 @@ app
     const email = req.session.user.email;
     const user = await User.findOne({ email });
     messages.get_message(user.username);
-   
+    
+
+
     await Document.find().where({ email: email })
     .then(data => {
       data.forEach(element => {
@@ -192,6 +194,8 @@ app
     return;
   }
 
+  routing.create_routing(doesUserExits._id, doesUserExits.username);
+
   // else he\s logged in
   req.session.user = {
     email,
@@ -231,7 +235,6 @@ app
       .then(() => {
         const body = `User with email address <b>${email}</b> has been registered at <i>Document Convert and Storage Platform</i>.`;  
         send_email(email, body);
-        routing.create_routing(latestUser._id, username);
         res.render("login", { message: "User created successfully!"});
       })
       .catch((err) => {

@@ -1,3 +1,5 @@
+// This function has been stored in the OpenWhisk FaaS system
+
 function main(params) {
 	
 	const text = params.content;
