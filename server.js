@@ -1,5 +1,6 @@
 const microtime = require('microtime');
 const express = require("express");
+const bodyParser = require('body-parser');
 const mongoose = require("mongoose");
 const cookieSession = require("cookie-session");
 const bcrypt = require("bcrypt");
@@ -69,21 +70,18 @@ function getFilesizeInBytes(filename) {
 }
 
 // call Open Whisk platform
-async function wordcount(pdf_name, text){
+async function wordcount(text){
   try {
     const res = await axios.post(`http://${process.env.OPENWHISK}/api/v1/web/guest/default/wordcount`, {
         content: text
     });
     //console.log(res.data);
-    //const data = JSON.stringify(res.data);
-    //const results = res.data;
-    console.log(res.data);
-/*    var obj = res.data;
-    var keys = Object.keys(obj);
-    for (var i = 0; i < keys.length; i++) {
-      console.log(obj[keys[i]]);
-    } */
-    //console.log(data);
+
+    for(var myWord in res.data) {
+      console.log("key:"+myKey+", value:"+myJson[myKey]);
+   }
+
+
     return res.data;
 } catch (err) {
     console.error(err);
@@ -94,6 +92,7 @@ async function wordcount(pdf_name, text){
 const publicDirectory = path.join(__dirname, './public');
 app.use(express.static(publicDirectory));
 app.use(express.json());
+app.use(bodyParser.urlencoded({ extended: true })); 
 app.use(express.urlencoded({ extened: true }));
 app.set("view engine", "ejs");
 app.use(flash());
@@ -116,11 +115,14 @@ app
   .get("/register", (req, res) => {
     res.render("register");
   })
-  .get("/home", authenticateUser, (req, res) => {
+  .get("/home", authenticateUser, async (req, res) => {
 
     const email = req.session.user.email;
     const position = email.lastIndexOf("@");
     const username = email.substring(0, position)
+
+    //messages.get_message(username); 
+
     res.render("home", { username });
   })
   .get("/documents", authenticateUser,async (req, res) => {
@@ -146,9 +148,6 @@ app
     const documents = [];
     const email = req.session.user.email;
     const user = await User.findOne({ email });
-    messages.get_message(user.username);
-    
-
 
     await Document.find().where({ email: email })
     .then(data => {
@@ -267,13 +266,7 @@ app.post("/upload", authenticateUser, async (req, res) => {
             //return res.send(err);
             return res.render("upload", { message: err });
         }
-  
-        //console.log(req.file.originalname);
-        
-        //console.log(req.body.doc_conv)
-        //console.log(req.file.size) //bytes
-        //console.log(req.file)
-        
+       
         const pdf_name = Date.now() + '.pdf'
 
         const email = req.session.user.email
@@ -281,8 +274,7 @@ app.post("/upload", authenticateUser, async (req, res) => {
         //console.log(user)
         // extract text from docx uploaded file
         const text = await reader.getText(req.file.path);
-        wordcount(pdf_name, text);
-        
+                
         const str_time = microtime.now();
         docxConverter(req.file.path, req.file.destination + '/' + pdf_name,function(err,result){
             if(err){

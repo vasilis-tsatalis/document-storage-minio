@@ -23,7 +23,7 @@ const get_message = function(user_queue) {
             const newdata = thedata.replace(/'/g, '"');
             const mydata = JSON.parse(newdata);
             console.log(mydata);
-            //console.log('----------------------')
+            console.log('----------------------')
             //return mydata;
         })
     } )
