@@ -11,6 +11,7 @@ const path = require('path');
 const docxConverter = require('docx-pdf');
 const reader = require('any-text');
 const axios = require('axios');
+const fetch = require('node-fetch');
 
 require('dotenv/config');
 const User = require("./models/User");
@@ -69,25 +70,6 @@ function getFilesizeInBytes(filename) {
   return fileSizeInBytes;
 }
 
-// call Open Whisk platform
-async function wordcount(text){
-  try {
-    const res = await axios.post(`http://${process.env.OPENWHISK}/api/v1/web/guest/default/wordcount`, {
-        content: text
-    });
-    //console.log(res.data);
-
-    for(var myWord in res.data) {
-      console.log("key:"+myKey+", value:"+myJson[myKey]);
-   }
-
-
-    return res.data;
-} catch (err) {
-    console.error(err);
-}
-}
-
 // middlewares
 const publicDirectory = path.join(__dirname, './public');
 app.use(express.static(publicDirectory));
@@ -121,11 +103,29 @@ app
     const position = email.lastIndexOf("@");
     const username = email.substring(0, position)
 
-    //messages.get_message(username); 
-
-    res.render("home", { username });
+    const documents = [];
+   
+    await Document.find().where({ email: email })
+    .then(data => {
+      let doc_count = 0;
+      let word_count = 0;
+      data.forEach(element => {
+        doc_count += 1;
+        const words = element.content;
+        for(var word in words) {
+          word_count += words[word];
+        };
+      });
+      res.render("home", { username, doc_count, word_count });
+    })
+    .catch(err => {
+      //console.error(err);
+      return res.render("home", { message: err });
+    }); 
+    
+    //res.render("home", { username });
   })
-  .get("/documents", authenticateUser,async (req, res) => {
+  .get("/documents", authenticateUser, async (req, res) => {
 
     const documents = [];
     const email = req.session.user.email;
@@ -133,7 +133,16 @@ app
     await Document.find().where({ email: email })
     .then(data => {
       data.forEach(element => {
-        documents.push({ original_name: element.original_name, name: element.name, doc_size: element.doc_size, conv_time: element.conv_time });
+
+        //console.log(element.content);
+        let counter = 0;
+        const words = element.content;
+        for(var word in words) {
+          counter += words[word];
+        };
+        //console.log(counter);
+
+        documents.push({ original_name: element.original_name, name: element.name, doc_size: element.doc_size, words: counter, conv_time: element.conv_time });
       });
       //console.log(documents);
       return res.render("documents", { documents });
@@ -274,7 +283,22 @@ app.post("/upload", authenticateUser, async (req, res) => {
         //console.log(user)
         // extract text from docx uploaded file
         const text = await reader.getText(req.file.path);
-                
+        
+        const pdf_content = await axios.post(`http://${process.env.OPENWHISK}/api/v1/web/guest/default/wordcount`, {
+          content: text
+        })
+        .then(res => {
+          //console.log(res.data);
+          const content = res.data.payload;
+          //console.log(content);
+          return content;
+        })
+        .catch((err) => {
+          console.log(err);
+        });
+        
+        //console.log(pdf_content);
+
         const str_time = microtime.now();
         docxConverter(req.file.path, req.file.destination + '/' + pdf_name,function(err,result){
             if(err){
@@ -310,7 +334,7 @@ app.post("/upload", authenticateUser, async (req, res) => {
                             const today = new Date();
                             const new_date = new Date();
                             new_date.setDate(today.getDate() + 7);
-                            const convertDocument = new Document({ email, original_name: req.file.originalname, name: pdf_name, url: presignedUrl, doc_size: doc_size, conv_time: conv_time, content: text, created_at: today, expired_at: new_date });
+                            const convertDocument = new Document({ email, original_name: req.file.originalname, name: pdf_name, url: presignedUrl, doc_size: doc_size, conv_time: conv_time, content: pdf_content, created_at: today, expired_at: new_date });
                             convertDocument
                             .save()
                             .then(() => {

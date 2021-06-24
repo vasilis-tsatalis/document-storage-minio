@@ -15,6 +15,7 @@
                         <th scope="col">Original Name</th>
                         <th scope="col">Name</th>
                         <th scope="col">Document Size (bytes)</th>
+                        <th scope="col">Wordcount (FaaS)</th>
                         <th scope="col">Convert Time (ms)</th>
                     </tr>
                     </thead>
@@ -24,6 +25,7 @@
                         <th scope="row"><%= document.original_name %></th>
                         <td><%= document.name %></td>
                         <td><%= document.doc_size %></td>
+                        <td><%= document.words %></td>
                         <td><%= document.conv_time %></td>
                     </tr>
                     <% }) %> <% } %>

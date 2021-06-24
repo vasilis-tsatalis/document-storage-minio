@@ -2,27 +2,37 @@
 
 <%- include("./navbar/menu") %>
 
-<div class="container mt-4">
+<div class="container mt-2">
     
     <h4>Hello <i><%= username %></i></h4>
-    <hr class="my-4"> <br>    
+    <hr class="my-2"> 
+    <br>    
+    <br>
 
- <!--   <div class="row">
+    <div class="row">
+        
         <div class="column">
           <div class="card">
-            <h3>Sum of Words</h3>
-            <p><%= words %></p>
+            <h3>Documents</h3>
+            <p><%= doc_count %></p>
           </div>
         </div>
-      
+
         <div class="column">
           <div class="card">
-            <h3>Sum of Documents</h3>
-            <p><%= counter %></p>
+            <h3>Words</h3>
+            <p><%= word_count %></p>
           </div>
-        </div> -->
-               
+        </div>
+        
       </div>
+
+      <br>    
+      <br>
+      <br>    
+      <br>
+
+      <h4><i><a href="http://20.86.146.181:5000/queues/<%= username %>"">Messaging System</a></i></h4>
 
 </div>
 
